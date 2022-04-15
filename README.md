@@ -1,4 +1,4 @@
-# EE361C-Final_Project
+# EE361C-Final-Project
  Concurrent Hash Tables
 
 Implement concurrent hashing algorithms. You should try multiple ways of hashing such as hashing with chains, Cuckoo Hashing, and Hopscotch Hashing. 
