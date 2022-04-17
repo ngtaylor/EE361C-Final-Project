@@ -1,3 +1,7 @@
+/* LockFreeChain.java
+ * EE361C Final Project
+ */
+
 package chain_hashing;
 
 import java.util.ArrayList;
@@ -25,23 +29,27 @@ public class LockFreeChain {
         size = 0;
     }
 
-    public int size() { return size; }
-    public boolean isEmpty() { return size() == 0; }
+    //True if hash table is empty, false otherwise
+    public boolean isEmpty() { return size == 0; }
 
+    //Returns value for a key
     public Integer get(Integer key){
 
         return null;
     }
 
+    //Removes key and returns value associated with it
     public Integer remove(Integer key){
 
         return null;
     }
 
+    //Add key-value pair to hash table
     public void put(Integer key, Integer value){
 
     }
 
+    //Hash function for obtaining hash index for a key
     private Integer hashFunction(Integer key){
         return null;
     }

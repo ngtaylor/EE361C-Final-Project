@@ -1,9 +1,15 @@
+/* LockChain.java
+ * EE361C Final Project
+ */
+
 package chain_hashing;
 
 import java.util.ArrayList;
 import java.util.concurrent.locks.ReentrantLock;
 
 public class LockChain {
+    private ReentrantLock lock;
+
     //Stores array of chains
     private ArrayList<HashNode> buckets;
 
@@ -17,35 +23,37 @@ public class LockChain {
         buckets = new ArrayList<>();
         numBuckets = 10;
         size = 0;
+        lock = new ReentrantLock();
     }
 
     public LockChain(Integer numBuckets){
         this.numBuckets = numBuckets;
         buckets = new ArrayList<>();
         size = 0;
+        lock = new ReentrantLock();
     }
 
-    public int size() { return size; }
-    public boolean isEmpty() { return size() == 0; }
+    //True if hash table is empty, false otherwise
+    public boolean isEmpty() { return size == 0; }
 
-    private final Integer hashCode(Integer key) {
-        return Integer.hashCode(key);
-    }
-
+    //Returns value for a key
     public Integer get(Integer key){
 
         return null;
     }
 
+    //Removes key and returns value associated with it
     public Integer remove(Integer key){
 
         return null;
     }
 
+    //Add key-value pair to hash table
     public void put(Integer key, Integer value){
 
     }
 
+    //Hash function for obtaining hash index for a key
     private Integer hashFunction(Integer key){
         return null;
     }
