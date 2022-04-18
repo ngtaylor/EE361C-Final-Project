@@ -5,6 +5,7 @@
 package chain_hashing;
 
 import java.util.ArrayList;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.locks.ReentrantLock;
 
 public class LockChain {
@@ -15,24 +16,34 @@ public class LockChain {
     private Integer numBuckets;
 
     //Current size of array list
-    private Integer size;
+    public AtomicInteger size;
 
     public LockChain(){
         buckets = new ArrayList<>();
         numBuckets = 10;
-        size = 0;
+        size = new AtomicInteger();
+
+        //Make empty chains
+        for(int i = 0; i < numBuckets; i++){
+            buckets.add(new HashNode(null, null, null));
+        }
     }
 
     public LockChain(Integer numBuckets){
         this.numBuckets = numBuckets;
         buckets = new ArrayList<>();
-        size = 0;
+        size = new AtomicInteger();
+
+        //Make empty chains
+        for(int i = 0; i < numBuckets; i++){
+            buckets.add(null);
+        }
     }
 
     //True if hash table is empty, false otherwise
-    public boolean isEmpty() { return size == 0; }
+    public boolean isEmpty() { return size.get() == 0; }
 
-    //Returns value for a key
+    //Returns value for a key, returns null if key not found in chain
     public Integer get(Integer key){
         //Use hash function to get index of key
         Integer bucketIdx = hashFunction(key);
@@ -55,7 +66,7 @@ public class LockChain {
         return null;
     }
 
-    //Removes key and returns value associated with it
+    //Removes key and returns value associated with it, returns null if not found
     public Integer remove(Integer key){
         //Use hash function to get index of key
         Integer bucketIdx = hashFunction(key);
@@ -82,7 +93,7 @@ public class LockChain {
         }
 
         //Reduce size;
-        size--;
+        size.decrementAndGet();
 
         //Remove key
         if(prev != null){
@@ -101,24 +112,54 @@ public class LockChain {
 
         //Start at head of chain
         HashNode head = buckets.get(bucketIdx);
-
-        //See if key is already in its chain
-        while(head!=null){
-            //If found return value, else keep traversing chain
-            if(head.key.equals(key) && hashCode.equals(head.hashCode)){
-                head.value = value;
-                return;
+        head.lock.lock();
+        HashNode prev = head;
+        try {
+            if(head.key == null){
+                //If head is null then add new node as head
+                size.incrementAndGet();
+                HashNode node = new HashNode(key, value, hashCode);
+                buckets.set(bucketIdx, node);
+            } else if (head.next == null){
+                //If non-null head is the only node in chain, and it has same key, update value of head
+                if (head.key.equals(key) && hashCode.equals(head.hashCode)) {
+                    head.value = value;
+                }
             } else {
-                head = head.next;
-            }
-        }
+                //Else use fine-grained locking to traverse chain
+                HashNode curr = prev.next;
+                curr.lock.lock();
+                try {
+                    //See if key is already in its chain
+                    while (true) {
+                        //If found return value, else keep traversing chain
+                        if (curr.key.equals(key) && hashCode.equals(curr.hashCode)) {
+                            curr.value = value;
+                            break;
+                        } else {
+                            if(curr.next == null){
+                                break;
+                            }
+                            //Traverse using "hand over hand" method of acquiring locks
+                            prev.lock.unlock();
+                            prev = curr;
+                            curr = curr.next;
+                            curr.lock.lock();
+                        }
+                    }
 
-        //If key not present then insert it to
-        size++;
-        head = buckets.get(bucketIdx);
-        HashNode node = new HashNode(key, value, hashCode);
-        node.next = head;
-        buckets.set(bucketIdx, node);
+                    //If key not present then insert it into chain between previous and current nodes to ensure it gets added properly
+                    size.incrementAndGet();
+                    HashNode node = new HashNode(key, value, hashCode);
+                    node.next = curr;
+                    prev.next = node;
+                } finally {
+                    curr.lock.unlock();
+                }
+            }
+        } finally {
+            prev.lock.unlock();
+        }
     }
 
     //Hash function for obtaining hash index for a key
@@ -142,6 +183,7 @@ public class LockChain {
             this.key = key;
             this.value = value;
             this.hashCode = hashCode;
+            next = null;
             lock = new ReentrantLock();
         }
     }
