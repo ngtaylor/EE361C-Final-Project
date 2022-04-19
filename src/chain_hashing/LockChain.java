@@ -56,19 +56,43 @@ public class LockChain {
 
         //Start at head of chain
         HashNode head = buckets.get(bucketIdx);
-
-        //Find key in its chain
-        while(head.key!=null){
-            //If found return value, else keep traversing chain
-            if(head.key.equals(key) && hashCode.equals(head.hashCode)){
-                return head.value;
-            } else {
-                head = head.next;
+        HashNode prev = null;
+        HashNode curr = null;
+        head.lock.lock();
+        try {
+            prev = head;
+            curr = prev.next;
+            if(curr == null){
+                return null;
             }
-        }
+            curr.lock.lock();
+            try {
+                //Find key in its chain
+                while (curr.hashCode < hashCode) {
+                    //Traverse using "hand over hand" method of acquiring locks
+                    prev.lock.unlock();
+                    prev = curr;
+                    curr = curr.next;
+                    if(curr == null) {
+                        break;
+                    }
+                    curr.lock.lock();
+                }
 
-        //If not found
-        return null;
+                if(curr != null && curr.hashCode == hashCode){
+                    return curr.value;
+                }
+
+                //If not found
+                return null;
+            } finally {
+                if(curr != null) {
+                    curr.lock.unlock();
+                }
+            }
+        } finally {
+            prev.lock.unlock();
+        }
     }
 
     //Removes key and returns value associated with it, returns null if not found
@@ -79,62 +103,39 @@ public class LockChain {
 
         //Start at head of chain
         HashNode head = buckets.get(bucketIdx);
-        head.lock.lock();
-        HashNode prev = head;
+        HashNode prev = null;
         HashNode curr = null;
+        head.lock.lock();
         try {
-            if(head.key == null){
-                //If head is null then return null
+            //Else use fine-grained locking to traverse chain
+            prev = head;
+            curr = prev.next;
+            if(curr == null){
                 return null;
-            } else {
-                //If head has same key, then remove it
-                if (head.key.equals(key) && hashCode.equals(head.hashCode)) {
-                    if(head.next == null) {
-                        HashNode nullHead = new HashNode(null, null, null);
-                        nullHead.lock = head.lock;
-                        buckets.set(bucketIdx, nullHead);
-                    } else {
-                        buckets.set(bucketIdx, head.next);
+            }
+            curr.lock.lock();
+            try {
+                //Find key in its chain
+                while (curr.hashCode < hashCode) {
+                    //Traverse using "hand over hand" method of acquiring locks
+                    prev.lock.unlock();
+                    prev = curr;
+                    curr = curr.next;
+                    if(curr == null) {
+                        break;
                     }
-                    size.decrementAndGet();
-                    return head.value;
-                } else if(head.next == null){
-                    return null;
+                    curr.lock.lock();
                 }
 
-                //Else use fine-grained locking to traverse chain
-                curr = prev.next;
-                curr.lock.lock();
-                try {
-                    //Find key in its chain
-                    while (true) {
-                        //If found break, else keep traversing chain
-                        if (curr.key.equals(key) && hashCode.equals(curr.hashCode)) {
-                            break;
-                        } else {
-                            if(curr.next == null){
-                                //Key not found
-                                return null;
-                            }
-                            //Traverse using "hand over hand" method of acquiring locks
-                            prev.lock.unlock();
-                            prev = curr;
-                            curr = curr.next;
-                            curr.lock.lock();
-                        }
-                    }
-
+                if(curr != null && curr.hashCode == hashCode){
                     //Reduce size;
                     size.decrementAndGet();
-
-                    //Remove key
-                    if (prev.key != null) {
-                        prev.next = curr.next;
-                    } else {
-                        buckets.set(bucketIdx, curr.next);
-                    }
+                    prev.next = curr.next;
                     return curr.value;
-                } finally {
+                }
+                return null;
+            } finally {
+                if(curr != null) {
                     curr.lock.unlock();
                 }
             }
@@ -154,52 +155,40 @@ public class LockChain {
         head.lock.lock();
         HashNode prev = head;
         try {
-            if(head.key == null){
-                //If head is null then add new node as head
+            //Else use fine-grained locking to traverse chain
+            HashNode curr = prev.next;
+            if(curr == null){
                 size.incrementAndGet();
                 HashNode node = new HashNode(key, value, hashCode);
-                node.lock = head.lock;
-                buckets.set(bucketIdx, node);
-            } else {
-                //If non-null head is the only node in chain, and it has same key, update value of head
-                if (head.key.equals(key) && hashCode.equals(head.hashCode)) {
-                    head.value = value;
-                    return;
-                } else if(head.next == null) {
-                    //If key not present then insert it after head
-                    size.incrementAndGet();
-                    head.next = new HashNode(key, value, hashCode);
+                node.next = null;
+                prev.next = node;
+                return;
+            }
+            curr.lock.lock();
+            try {
+                //See if key is already in its chain
+                while (curr.hashCode < hashCode) {
+                        //Traverse using "hand over hand" method of acquiring locks
+                        prev.lock.unlock();
+                        prev = curr;
+                        curr = curr.next;
+                        if(curr == null) {
+                            break;
+                        }
+                        curr.lock.lock();
+                }
+                if(curr != null && curr.hashCode == hashCode){
+                    curr.value = value;
                     return;
                 }
 
-                //Else use fine-grained locking to traverse chain
-                HashNode curr = prev.next;
-                curr.lock.lock();
-                try {
-                    //See if key is already in its chain
-                    while (true) {
-                        //If found return value, else keep traversing chain
-                        if (curr.key.equals(key) && hashCode.equals(curr.hashCode)) {
-                            curr.value = value;
-                            break;
-                        } else {
-                            if(curr.next == null){
-                                break;
-                            }
-                            //Traverse using "hand over hand" method of acquiring locks
-                            prev.lock.unlock();
-                            prev = curr;
-                            curr = curr.next;
-                            curr.lock.lock();
-                        }
-                    }
-
-                    //If key not present then insert it after current to ensure it is added safely
-                    size.incrementAndGet();
-                    HashNode node = new HashNode(key, value, hashCode);
-                    node.next = curr.next;
-                    curr.next = node;
-                } finally {
+                //If key not present then insert it after current to ensure it is added safely
+                size.incrementAndGet();
+                HashNode node = new HashNode(key, value, hashCode);
+                node.next = curr;
+                prev.next = node;
+            } finally {
+                if(curr != null) {
                     curr.lock.unlock();
                 }
             }

@@ -71,8 +71,8 @@ public class ChainTest {
         int count = 0;
         ArrayList<LockChain.HashNode> buckets = hash.getBuckets();
         for(int i = 0; i < numBuckets; i++) {
-            LockChain.HashNode head = buckets.get(i);
-            while(head.key != null){
+            LockChain.HashNode head = buckets.get(i).next;
+            while(head != null){
                 count++;
                 head = head.next;
             }
@@ -122,6 +122,7 @@ public class ChainTest {
         System.out.println("# of items in hashtable: " + count + " Expected #: " + expected);
         Assert.assertTrue("Count: " + count + " Expected: " + expected, count == expected);
 
+        //Now ensure that all the items have the correct values
         Integer val;
         for(int i = 0; i < 30; i++){
             val = hash.remove(i);
@@ -174,9 +175,9 @@ public class ChainTest {
     @Test
     public void testNormalChain(){
         //LockFreeChain hash = new LockFreeChain(2);
-        //LockChain hash = new LockChain(2);
+        LockChain hash = new LockChain(2);
         //NormalChain hash = new NormalChain();
-        CoarseLockChain hash = new CoarseLockChain(2);
+        //CoarseLockChain hash = new CoarseLockChain(2);
         hash.put(1,1);
         hash.put(2,2);
         hash.put(1,3);

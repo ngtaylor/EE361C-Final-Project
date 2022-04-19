@@ -6,11 +6,11 @@ package chain_hashing;
 
 import java.util.ArrayList;
 import java.util.concurrent.atomic.AtomicInteger;
-import java.util.concurrent.atomic.AtomicReference;
+import java.util.concurrent.atomic.AtomicMarkableReference;
 
 public class LockFreeChain {
     //Stores array of chains
-    private ArrayList<AtomicReference<HashNode>> buckets;
+    private ArrayList<AtomicMarkableReference<HashNode>> buckets;
 
     //Current capacity of array list
     private Integer numBuckets;
@@ -26,7 +26,7 @@ public class LockFreeChain {
         //Make empty chains
         for(int i = 0; i < numBuckets; i++){
             HashNode node = new HashNode(null, null, null);
-            buckets.add(new AtomicReference<>(node));
+            buckets.add(new AtomicMarkableReference<>(node, false));
         }
     }
 
@@ -38,12 +38,12 @@ public class LockFreeChain {
         //Make empty chains
         for(int i = 0; i < numBuckets; i++){
             HashNode node = new HashNode(null, null, null);
-            buckets.add(new AtomicReference<>(node));
+            buckets.add(new AtomicMarkableReference<>(node, false));
         }
     }
 
     //Gets buckets array list for testing purposes
-    public ArrayList<AtomicReference<HashNode>> getBuckets(){
+    public ArrayList<AtomicMarkableReference<HashNode>> getBuckets(){
         return buckets;
     }
 
@@ -57,15 +57,15 @@ public class LockFreeChain {
         Integer hashCode = key.hashCode();
 
         //Start at head of chain
-        AtomicReference<HashNode> head = buckets.get(bucketIdx);
+        AtomicMarkableReference<HashNode> head = buckets.get(bucketIdx);
 
         //Find key in its chain
-        while(head.get().key != null){
+        while(head.getReference().key != null){
             //If found return value, else keep traversing chain
-            if(head.get().key.equals(key) && hashCode.equals(head.get().hashCode)){
-                return head.get().value;
+            if(head.getReference().key.equals(key) && hashCode.equals(head.getReference().hashCode)){
+                return head.getReference().value;
             } else {
-                head = head.get().next;
+                head = head.getReference().next;
             }
         }
 
@@ -80,22 +80,22 @@ public class LockFreeChain {
         Integer hashCode = key.hashCode();
 
         //Start at head of chain
-        AtomicReference<HashNode> head = buckets.get(bucketIdx);
+        AtomicMarkableReference<HashNode> head = buckets.get(bucketIdx);
 
         //Find key in its chain
-        AtomicReference<HashNode> prev = null;
-        while(head.get().key != null){
+        AtomicMarkableReference<HashNode> prev = null;
+        while(head.getReference().key != null){
             //If found break, else keep traversing chain
-            if(head.get().key.equals(key) && hashCode.equals(head.get().hashCode)){
+            if(head.getReference().key.equals(key) && hashCode.equals(head.getReference().hashCode)){
                 break;
             } else {
                 prev = head;
-                head = head.get().next;
+                head = head.getReference().next;
             }
         }
 
         //If key not found
-        if(head.get().key == null){
+        if(head.getReference().key == null){
             return null;
         }
 
@@ -103,14 +103,14 @@ public class LockFreeChain {
         size.decrementAndGet();
 
         //Remove key
-        if(prev != null && prev.get().key != null){
-            HashNode prevNode = prev.get();
-            prevNode.next = head.get().next;
-            prev.set(prevNode);
+        if(prev != null && prev.getReference().key != null){
+            HashNode prevNode = prev.getReference();
+            prevNode.next = head.getReference().next;
+            prev.set(prevNode, false);
         } else {
-            buckets.set(bucketIdx, head.get().next);
+            buckets.set(bucketIdx, head.getReference().next);
         }
-        return head.get().value;
+        return head.getReference().value;
     }
 
     //Add key-value pair to hash table
@@ -120,19 +120,19 @@ public class LockFreeChain {
         Integer hashCode = key.hashCode();
 
         //Start at head of chain
-        AtomicReference<HashNode> head = buckets.get(bucketIdx);
+        AtomicMarkableReference<HashNode> head = buckets.get(bucketIdx);
 
         //See if key is already in its chain
-        while(head.get().key != null){
+        while(head.getReference().key != null){
             //If found break, else keep traversing chain
-            if(head.get().key.equals(key) && hashCode.equals(head.get().hashCode)){
-                HashNode newNode = head.get();
+            if(head.getReference().key.equals(key) && hashCode.equals(head.getReference().hashCode)){
+                HashNode newNode = head.getReference();
                 newNode.value = value;
-                HashNode oldHead = head.get();
-                head.compareAndSet(oldHead, newNode);
+                HashNode oldHead = head.getReference();
+                head.compareAndSet(oldHead, newNode, false, false);
                 return;
             } else {
-                head = head.get().next;
+                head = head.getReference().next;
             }
         }
 
@@ -141,7 +141,7 @@ public class LockFreeChain {
         head = buckets.get(bucketIdx);
         HashNode node = new HashNode(key, value, hashCode);
         node.next = head;
-        AtomicReference<HashNode> newHead = new AtomicReference<>(node);
+        AtomicMarkableReference<HashNode> newHead = new AtomicMarkableReference<>(node, false);
         buckets.set(bucketIdx, newHead);
     }
 
@@ -156,14 +156,14 @@ public class LockFreeChain {
     protected class HashNode {
         public Integer key;
         public Integer value;
-        public AtomicReference<HashNode> next;
+        public AtomicMarkableReference<HashNode> next;
         final Integer hashCode;
 
         public HashNode(Integer key, Integer value, Integer hashCode){
             this.key = key;
             this.value = value;
             this.hashCode = hashCode;
-            next = new AtomicReference<>(null);
+            next = new AtomicMarkableReference<>(null, false);
         }
     }
 }
