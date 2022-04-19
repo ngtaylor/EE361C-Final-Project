@@ -78,8 +78,15 @@ public class ChainTest {
             }
         }
         int expected = 30;
-        System.out.println("Count: " + count + " Expected: " + expected);
+        System.out.println("# of items in hashtable: " + count + " Expected #: " + expected);
         Assert.assertTrue("Count: " + count + " Expected: " + expected, count == expected);
+
+        Integer val;
+        for(int i = 0; i < 30; i++){
+            val = hash.remove(i);
+            System.out.println("Removed values are correct");
+            Assert.assertTrue("Removed values are correct", val == i);
+        }
     }
 
     @Test
@@ -112,7 +119,7 @@ public class ChainTest {
             }
         }
         int expected = 30;
-        System.out.println("Count: " + count + " Expected: " + expected);
+        System.out.println("# of items in hashtable: " + count + " Expected #: " + expected);
         Assert.assertTrue("Count: " + count + " Expected: " + expected, count == expected);
 
         Integer val;
@@ -121,7 +128,6 @@ public class ChainTest {
             System.out.println("Removed values are correct");
             Assert.assertTrue("Removed values are correct", val == i);
         }
-
     }
 
     @Test
@@ -153,8 +159,15 @@ public class ChainTest {
             }
         }
         int expected = 30;
-        System.out.println("Count: " + count + " Expected: " + expected);
+        System.out.println("# of items in hashtable: " + count + " Expected #: " + expected);
         Assert.assertTrue("Count: " + count + " Expected: " + expected, count == expected);
+
+        Integer val;
+        for(int i = 0; i < 30; i++){
+            val = hash.remove(i);
+            System.out.println("Removed values are correct");
+            Assert.assertTrue("Removed values are correct", val == i);
+        }
     }
 
     //This tests a normal chain hash table that does not involve concurrent algorithms
