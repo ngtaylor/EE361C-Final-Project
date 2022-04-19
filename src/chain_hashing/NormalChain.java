@@ -1,49 +1,45 @@
-/* LockFreeChain.java
+/* NormalChain.java
  * EE361C Final Project
  */
 
 package chain_hashing;
 
 import java.util.ArrayList;
-import java.util.concurrent.atomic.AtomicInteger;
-import java.util.concurrent.atomic.AtomicReference;
 
-public class LockFreeChain {
+public class NormalChain {
     //Stores array of chains
-    private ArrayList<AtomicReference<HashNode>> buckets;
+    private ArrayList<HashNode> buckets;
 
     //Current capacity of array list
     private Integer numBuckets;
 
     //Current size of array list
-    public AtomicInteger size;
+    public Integer size;
 
-    public LockFreeChain(){
+    public NormalChain(){
         buckets = new ArrayList<>();
         numBuckets = 10;
-        size = new AtomicInteger();
+        size = 0;
 
         //Make empty chains
         for(int i = 0; i < numBuckets; i++){
-            HashNode node = new HashNode(null, null, null);
-            buckets.add(new AtomicReference<>(node));
+            buckets.add(new HashNode(null, null, null));
         }
     }
 
-    public LockFreeChain(Integer numBuckets){
+    public NormalChain(Integer numBuckets){
         this.numBuckets = numBuckets;
         buckets = new ArrayList<>();
-        size = new AtomicInteger();
+        size = 0;
 
         //Make empty chains
         for(int i = 0; i < numBuckets; i++){
-            HashNode node = new HashNode(null, null, null);
-            buckets.add(new AtomicReference<>(node));
+            buckets.add(new HashNode(null, null, null));
         }
     }
 
     //True if hash table is empty, false otherwise
-    public boolean isEmpty() { return size.get() == 0; }
+    public boolean isEmpty() { return size == 0; }
 
     //Returns value for a key
     public Integer get(Integer key){
@@ -52,15 +48,15 @@ public class LockFreeChain {
         Integer hashCode = key.hashCode();
 
         //Start at head of chain
-        AtomicReference<HashNode> head = buckets.get(bucketIdx);
+        HashNode head = buckets.get(bucketIdx);
 
         //Find key in its chain
-        while(head.get().key != null){
+        while(head.key!=null){
             //If found return value, else keep traversing chain
-            if(head.get().key.equals(key) && hashCode.equals(head.get().hashCode)){
-                return head.get().value;
+            if(head.key.equals(key) && hashCode.equals(head.hashCode)){
+                return head.value;
             } else {
-                head = head.get().next;
+                head = head.next;
             }
         }
 
@@ -75,37 +71,35 @@ public class LockFreeChain {
         Integer hashCode = key.hashCode();
 
         //Start at head of chain
-        AtomicReference<HashNode> head = buckets.get(bucketIdx);
+        HashNode head = buckets.get(bucketIdx);
 
         //Find key in its chain
-        AtomicReference<HashNode> prev = null;
-        while(head.get().key != null){
+        HashNode prev = null;
+        while(head.key!=null){
             //If found break, else keep traversing chain
-            if(head.get().key.equals(key) && hashCode.equals(head.get().hashCode)){
+            if(head.key.equals(key) && hashCode.equals(head.hashCode)){
                 break;
             } else {
                 prev = head;
-                head = head.get().next;
+                head = head.next;
             }
         }
 
         //If key not found
-        if(head.get().key == null){
+        if(head.key == null){
             return null;
         }
 
         //Reduce size;
-        size.decrementAndGet();
+        size--;
 
         //Remove key
-        if(prev != null && prev.get().key != null){
-            HashNode prevNode = prev.get();
-            prevNode.next = head.get().next;
-            prev.set(prevNode);
+        if(prev != null){
+            prev.next = head.next;
         } else {
-            buckets.set(bucketIdx, head.get().next);
+            buckets.set(bucketIdx, head.next);
         }
-        return head.get().value;
+        return head.value;
     }
 
     //Add key-value pair to hash table
@@ -115,29 +109,25 @@ public class LockFreeChain {
         Integer hashCode = key.hashCode();
 
         //Start at head of chain
-        AtomicReference<HashNode> head = buckets.get(bucketIdx);
+        HashNode head = buckets.get(bucketIdx);
 
         //See if key is already in its chain
-        while(head.get().key != null){
-            //If found break, else keep traversing chain
-            if(head.get().key.equals(key) && hashCode.equals(head.get().hashCode)){
-                HashNode newNode = head.get();
-                newNode.value = value;
-                HashNode oldHead = head.get();
-                head.compareAndSet(oldHead, newNode);
+        while(head.key!=null){
+            //If found return value, else keep traversing chain
+            if(head.key.equals(key) && hashCode.equals(head.hashCode)){
+                head.value = value;
                 return;
             } else {
-                head = head.get().next;
+                head = head.next;
             }
         }
 
-        //If key not present then insert it as new head
-        size.incrementAndGet();
+        //If key not present then insert it to
+        size++;
         head = buckets.get(bucketIdx);
         HashNode node = new HashNode(key, value, hashCode);
         node.next = head;
-        AtomicReference<HashNode> newHead = new AtomicReference<>(node);
-        buckets.set(bucketIdx, newHead);
+        buckets.set(bucketIdx, node);
     }
 
     //Hash function for obtaining hash index for a key
@@ -151,14 +141,14 @@ public class LockFreeChain {
     protected class HashNode {
         public Integer key;
         public Integer value;
-        public AtomicReference<HashNode> next;
+        public HashNode next;
         final Integer hashCode;
 
         public HashNode(Integer key, Integer value, Integer hashCode){
             this.key = key;
             this.value = value;
             this.hashCode = hashCode;
-            next = new AtomicReference<>(null);
+            next = null;
         }
     }
 }
