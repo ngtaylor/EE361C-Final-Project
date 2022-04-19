@@ -7,25 +7,30 @@ package cuckoo_hashing;
 import org.junit.Assert;
 import org.junit.Test;
 import java.util.concurrent.*;
+import java.util.concurrent.locks.ReentrantLock;
 
 public class CuckooTest {
 
-//    public class TestLockThread implements Runnable{
-//        LockCuckoo hash;
-//        public TestLockThread(LockCuckoo hash) {
-//            this.hash = hash;
-//        }
-//        public void run() {
-//        	/* following array doesn't have any cycles and hence all keys will be inserted without any rehashing */
-//        	int keys[] = {20, 50, 53, 75, 100, 67, 105, 3, 36, 39};
-//        	int n = keys.length;
-//        	// start with placing every key at its position in
-//        	// the first hash table according to first hash
-//        	// function
-//        	for (int i = 0, cnt = 0; i < n; i++, cnt = 0)
-//        		hash.place(keys[i], 0, cnt, n);
-//        }
-//    }
+    public class TestLockThread implements Runnable{
+        LockCuckoo hash;
+        public TestLockThread(LockCuckoo hash) {
+            this.hash = hash;
+        }
+        public void run() {
+        	/* following array doesn't have any cycles and hence all keys will be inserted without any rehashing */
+        	//int keys[] = {20, 50, 53, 75, 100, 67, 105, 3, 36, 39};
+			int keys[] = new int[1000];
+			for (int i = 0; i < 1000; i++) {
+				keys[i] = i;
+			}    			
+        	int n = keys.length;
+        	// start with placing every key at its position in
+        	// the first hash table according to first hash
+        	// function
+        	for (int i = 0, cnt = 0; i < n; i++, cnt = 0)
+        		hash.place(keys[i], 0, cnt, n);
+        }
+    }
 
     public class TestCoarseLockThread implements Runnable{
         CoarseLockCuckoo hash;
@@ -35,7 +40,11 @@ public class CuckooTest {
         
         public void run() {
     		/* following array doesn't have any cycles and hence all keys will be inserted without any rehashing */
-    		int keys[] = {20, 50, 53, 75, 100, 67, 105, 3, 36, 39};
+    		//int keys[] = {20, 50, 53, 75, 100, 67, 105, 3, 36, 39};
+        	int keys[] = new int[1000];
+    		for (int i = 0; i < 1000; i++) {
+    			keys[i] = i;
+    		}    			
     		int n = keys.length;
     		// start with placing every key at its position in
     		// the first hash table according to first hash
@@ -52,7 +61,11 @@ public class CuckooTest {
 //        }
 //        public void run() {
 //    		/* following array doesn't have any cycles and hence all keys will be inserted without any rehashing */
-//    		int keys[] = {20, 50, 53, 75, 100, 67, 105, 3, 36, 39};
+//    		//int keys[] = {20, 50, 53, 75, 100, 67, 105, 3, 36, 39};
+//			int keys[] = new int[100];
+//			for (int i = 0; i < 100; i++) {
+//				keys[i] = i;
+//			}   
 //    		int n = keys.length;
 //    		// start with placing every key at its position in
 //    		// the first hash table according to first hash
@@ -62,14 +75,41 @@ public class CuckooTest {
 //        }
 //    }
 
-//    @Test
-//    public void testLockCuckoo() throws ExecutionException, InterruptedException {
-//
-//    }
+    @Test
+    public void testLockCuckoo() throws ExecutionException, InterruptedException {
+        LockCuckoo hash = new LockCuckoo();
+        LockCuckoo.hashtable = new int[LockCuckoo.ver][LockCuckoo.MAXN];
+        LockCuckoo.pos = new int[LockCuckoo.ver];
+        LockCuckoo.initTable();
+        LockCuckoo.initLocks();
+        int numThreads = 8;
+        Thread[] threads = new Thread[numThreads];
+        for(int i = 0; i < numThreads; i++) {
+            threads[i] = new Thread(new TestLockThread(hash));
+            threads[i].start();
+        }
+        // finish threads
+        for(Thread t : threads) {
+            try {
+                t.join();
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
+        }
+		// print the final table
+		hash.printTable();
+		int count = hash.itemCount();
+		System.out.println("lock item count: " + count);
+		Assert.assertTrue("Item count is correct", count == 1000);
+    }
 
     @Test
     public void testCoarseLockCuckoo() throws ExecutionException, InterruptedException {
         CoarseLockCuckoo hash = new CoarseLockCuckoo();
+        CoarseLockCuckoo.hashtable = new int[CoarseLockCuckoo.ver][CoarseLockCuckoo.MAXN];
+        CoarseLockCuckoo.pos = new int[CoarseLockCuckoo.ver];
+        CoarseLockCuckoo.lock = new ReentrantLock();
+        CoarseLockCuckoo.initTable();
         int numThreads = 8;
         Thread[] threads = new Thread[numThreads];
         for(int i = 0; i < numThreads; i++) {
@@ -87,20 +127,44 @@ public class CuckooTest {
 		// print the final table
 		hash.printTable();
 		int count = hash.itemCount();
-		Assert.assertTrue("Item count is correct", count == 10);
+		System.out.println("coarse lock item count: " + count);
+		Assert.assertTrue("Item count is correct", count == 1000);
     }
 
 //    @Test
 //    public void testLockFreeCuckoo() {
-//
+//        LockFreeCuckoo hash = new LockFreeCuckoo();
+//        int numThreads = 8;
+//        Thread[] threads = new Thread[numThreads];
+//        for(int i = 0; i < numThreads; i++) {
+//            threads[i] = new Thread(new TestFreeThread(hash));
+//            threads[i].start();
+//        }
+//        // finish threads
+//        for(Thread t : threads) {
+//            try {
+//                t.join();
+//            } catch (InterruptedException e) {
+//                e.printStackTrace();
+//            }
+//        }
+//		// print the final table
+//		hash.printTable();
+//		int count = hash.itemCount();
+//		System.out.println("lock free item count: " + count);
+//		Assert.assertTrue("Item count is correct", count == 100);
 //    }
 
     //This tests a normal chain hash table that does not involve concurrent algorithms
     @Test
-    public void testNormalChain(){
+    public void testNormalCuckoo(){
         NormalCuckoo hash = new NormalCuckoo();
 		/* following array doesn't have any cycles and hence all keys will be inserted without any rehashing */
-		int keys[] = {20, 50, 53, 75, 100, 67, 105, 3, 36, 39};
+		//int keys[] = {20, 50, 53, 75, 100, 67, 105, 3, 36, 39};
+    	int keys[] = new int[1000];
+		for (int i = 0; i < 1000; i++) {
+			keys[i] = i;
+		}   
 		int n = keys.length;
 		// start with placing every key at its position in the first hash table according to first hash function
 		for (int i = 0, cnt = 0; i < n; i++, cnt = 0)
@@ -108,6 +172,7 @@ public class CuckooTest {
 		// print the final table
 		hash.printTable();
 		int count = hash.itemCount();
+		System.out.println("normal item count: " + count);
 		Assert.assertTrue("Item count is correct", count == n);		
 
 //        NormalCuckoo hash2 = new NormalCuckoo();

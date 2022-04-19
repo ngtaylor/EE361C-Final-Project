@@ -1,19 +1,37 @@
 package cuckoo_hashing;
 
+import java.util.concurrent.locks.ReentrantLock;
+
 public class LockCuckoo {
 	
 	//upper bound on number of elements in our set
-	static int MAXN = 11;
+	static int MAXN = 1000;
 
 	//choices for position
 	static int ver = 2;
 
 	//Auxiliary space bounded by a small multiple
 	//of MAXN, minimizing wastage
-	static int [][]hashtable = new int[ver][MAXN];
+	static int [][]hashtable;
 
 	//Array to store possible positions for a key
-	static int []pos = new int[ver];
+	static int []pos;
+	
+	// fine grain locking requires a lock for each table entry
+	static ReentrantLock [][]locks;
+	// also need a lock for each pos entry
+	static ReentrantLock []pos_locks;
+	
+	// function to initialize all locks
+	static void initLocks() {
+		locks = new ReentrantLock[ver][MAXN];
+		pos_locks = new ReentrantLock[ver];
+		for (int j = 0; j < MAXN; j++)
+			for (int i = 0; i < ver; i++)
+				locks[i][j] = new ReentrantLock();
+		for(int i = 0; i < ver; i++)
+			pos_locks[i] = new ReentrantLock();
+	}
 	
 	/* function to fill hash table with dummy value
 	 * dummy value: INT_MIN
@@ -24,10 +42,17 @@ public class LockCuckoo {
 				hashtable[i][j] = Integer.MIN_VALUE;
 	}
 	
+	public LockCuckoo() {
+//		hashtable = new int[ver][MAXN];
+//		pos = new int[ver];
+//		initTable();
+//		initLocks();
+	}
+	
 	/* return hashed value for a key
 	 * function: ID of hash function according to which key has to hashed
 	 * key: item to be hashed */
-	static int hash(int function, int key) {
+	int hash(int function, int key) {
 		switch (function) {
 			case 1: return key % MAXN;
 			case 2: return (key / MAXN) % MAXN;
@@ -40,7 +65,7 @@ public class LockCuckoo {
 	 * tableID: table in which key has to be placed, also equal to function according to which key must be hashed
 	 * cnt: number of times function has already been called in order to place the first input key
 	 * n: maximum number of times function can be recursively called before stopping and declaring presence of cycle */
-	static void place(int key, int tableID, int cnt, int n) {
+	void place(int key, int tableID, int cnt, int n) {
 		/* if function has been recursively called max number of times, stop and declare cycle. Rehash. */
 		if (cnt == n) {
 			System.out.printf("%d unpositioned\n", key);
@@ -52,25 +77,40 @@ public class LockCuckoo {
 		 * check if key already present at any of the positions. 
 		 * If YES, return. */
 		for (int i = 0; i < ver; i++) {
+			pos_locks[i].lock();	
+			
 			pos[i] = hash(i + 1, key);
-			if (hashtable[i][pos[i]] == key)
+			locks[i][pos[i]].lock();
+			
+			if (hashtable[i][pos[i]] == key) {
+				locks[i][pos[i]].unlock();
+				pos_locks[i].unlock();
 				return;
+			}		
+			locks[i][pos[i]].unlock();
+			pos_locks[i].unlock();
 		}
-
+		pos_locks[tableID].lock();		
+		locks[tableID][pos[tableID]].lock();		
 		/* check if another key is already present at the position for the new key in the table
 		 * If YES: place the new key in its position
 		 * and place the older key in an alternate position for it in the next table */
 		if (hashtable[tableID][pos[tableID]] != Integer.MIN_VALUE) {
 			int dis = hashtable[tableID][pos[tableID]];
 			hashtable[tableID][pos[tableID]] = key;
+			locks[tableID][pos[tableID]].unlock();
+			pos_locks[tableID].unlock();
 			place(dis, (tableID + 1) % ver, cnt + 1, n);
-		}
-		else // else: place the new key in its position
+		} else {
+			// else: place the new key in its position
 			hashtable[tableID][pos[tableID]] = key;
+			locks[tableID][pos[tableID]].unlock();
+			pos_locks[tableID].unlock();
+		}		
 	}
 
 	/* function to print hash table contents */
-	static void printTable() {
+	void printTable() {
 		System.out.printf("Final hash tables:\n");
 
 		for (int i = 0; i < ver; i++, System.out.printf("\n"))
@@ -82,42 +122,20 @@ public class LockCuckoo {
 
 		System.out.printf("\n");
 	}
-
-	/* function for Cuckoo-hashing keys
-	 * keys[]: input array of keys
-	 * n: size of input array */
-	static void cuckoo(int keys[], int n) {
-		// initialize hash tables to a dummy value
-		// (INT-MIN) indicating empty position
-		initTable();
-
-		// start with placing every key at its position in
-		// the first hash table according to first hash
-		// function
-		for (int i = 0, cnt = 0; i < n; i++, cnt = 0)
-			place(keys[i], 0, cnt, n);
-
-		// print the final hash tables
-		printTable();
+	
+	/* function to return the count of items in the hash table */
+	int itemCount() {
+		int count = 0;
+		
+		for (int i = 0; i < ver; i++) {
+			for (int j = 0; j < MAXN; j++) {
+				if(hashtable[i][j] == Integer.MIN_VALUE) {
+					// ignore initial values
+				} else {
+					count++; 
+				}	
+			}
+		}
+		return count;
 	}
-
-	//Driver Code
-//	public static void main(String[] args)
-//	{
-//		/* following array doesn't have any cycles and hence all keys will be inserted without any rehashing */
-//		int keys_1[] = {20, 50, 53, 75, 100,
-//				67, 105, 3, 36, 39};
-//
-//		int n = keys_1.length;
-//
-//		cuckoo(keys_1, n);
-//
-//		/* following array has a cycle and hence we will have to rehash to position every key */
-//		int keys_2[] = {20, 50, 53, 75, 100,
-//				67, 105, 3, 36, 39, 6};
-//
-//		int m = keys_2.length;
-//
-//		cuckoo(keys_2, m);
-//	}
 }

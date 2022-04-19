@@ -5,35 +5,35 @@ import java.util.concurrent.locks.ReentrantLock;
 public class CoarseLockCuckoo {
 	
 	//upper bound on number of elements in our set
-	static int MAXN = 11;
+	static int MAXN = 1000;
 
 	//choices for position
 	static int ver = 2;
 
 	//Auxiliary space bounded by a small multiple
 	//of MAXN, minimizing wastage
-	int [][]hashtable;
+	static int [][]hashtable;
 
 	//Array to store possible positions for a key
-	int []pos;
+	static int []pos;
 	
     //Global lock for coarse grained locking of hash table
-    private ReentrantLock lock;
+    static ReentrantLock lock;
 	
 	/* function to fill hash table with dummy value
 	 * dummy value: INT_MIN
 	 * number of hashtables: ver */
-	void initTable() {
+	static void initTable() {
 		for (int j = 0; j < MAXN; j++)
 			for (int i = 0; i < ver; i++)
 				hashtable[i][j] = Integer.MIN_VALUE;
 	}
 	
 	public CoarseLockCuckoo() {
-		hashtable = new int[ver][MAXN];
-		pos = new int[ver];
-		lock = new ReentrantLock();
-		initTable();
+//		hashtable = new int[ver][MAXN];
+//		pos = new int[ver];
+//		lock = new ReentrantLock();
+//		initTable();
 	}
 	
 	/* return hashed value for a key
@@ -115,42 +115,4 @@ public class CoarseLockCuckoo {
 		}
 		return count;
 	}
-
-	/* function for Cuckoo-hashing keys
-	 * keys[]: input array of keys
-	 * n: size of input array */
-//	static void cuckoo(int keys[], int n) {
-//		// initialize hash tables to a dummy value
-//		// (INT-MIN) indicating empty position
-//		initTable();
-//
-//		// start with placing every key at its position in
-//		// the first hash table according to first hash
-//		// function
-//		for (int i = 0, cnt = 0; i < n; i++, cnt = 0)
-//			place(keys[i], 0, cnt, n);
-//
-//		// print the final hash tables
-//		printTable();
-//	}
-
-	//Driver Code
-//	public static void main(String[] args)
-//	{
-//		/* following array doesn't have any cycles and hence all keys will be inserted without any rehashing */
-//		int keys_1[] = {20, 50, 53, 75, 100,
-//				67, 105, 3, 36, 39};
-//
-//		int n = keys_1.length;
-//
-//		cuckoo(keys_1, n);
-//
-//		/* following array has a cycle and hence we will have to rehash to position every key */
-//		int keys_2[] = {20, 50, 53, 75, 100,
-//				67, 105, 3, 36, 39, 6};
-//
-//		int m = keys_2.length;
-//
-//		cuckoo(keys_2, m);
-//	}
 }
