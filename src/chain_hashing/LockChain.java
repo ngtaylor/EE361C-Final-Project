@@ -40,6 +40,11 @@ public class LockChain {
         }
     }
 
+    //Gets buckets array list for testing purposes
+    public ArrayList<HashNode> getBuckets(){
+        return buckets;
+    }
+
     //True if hash table is empty, false otherwise
     public boolean isEmpty() { return size.get() == 0; }
 
@@ -81,17 +86,22 @@ public class LockChain {
             if(head.key == null){
                 //If head is null then return null
                 return null;
-            } else if (head.next == null){
-                //If non-null head is the only node in chain, and it has same key, remove head
+            } else {
+                //If head has same key, then remove it
                 if (head.key.equals(key) && hashCode.equals(head.hashCode)) {
-                    HashNode nullHead = new HashNode(null, null, null);
-                    buckets.set(bucketIdx, nullHead);
+                    if(head.next == null) {
+                        HashNode nullHead = new HashNode(null, null, null);
+                        nullHead.lock = head.lock;
+                        buckets.set(bucketIdx, nullHead);
+                    } else {
+                        buckets.set(bucketIdx, head.next);
+                    }
                     size.decrementAndGet();
                     return head.value;
-                } else {
+                } else if(head.next == null){
                     return null;
                 }
-            } else {
+
                 //Else use fine-grained locking to traverse chain
                 curr = prev.next;
                 curr.lock.lock();
@@ -148,13 +158,20 @@ public class LockChain {
                 //If head is null then add new node as head
                 size.incrementAndGet();
                 HashNode node = new HashNode(key, value, hashCode);
+                node.lock = head.lock;
                 buckets.set(bucketIdx, node);
-            } else if (head.next == null){
+            } else {
                 //If non-null head is the only node in chain, and it has same key, update value of head
                 if (head.key.equals(key) && hashCode.equals(head.hashCode)) {
                     head.value = value;
+                    return;
+                } else if(head.next == null) {
+                    //If key not present then insert it after head
+                    size.incrementAndGet();
+                    head.next = new HashNode(key, value, hashCode);
+                    return;
                 }
-            } else {
+
                 //Else use fine-grained locking to traverse chain
                 HashNode curr = prev.next;
                 curr.lock.lock();
@@ -177,11 +194,11 @@ public class LockChain {
                         }
                     }
 
-                    //If key not present then insert it into chain between previous and current nodes to ensure it gets added safely
+                    //If key not present then insert it after current to ensure it is added safely
                     size.incrementAndGet();
                     HashNode node = new HashNode(key, value, hashCode);
-                    node.next = curr;
-                    prev.next = node;
+                    node.next = curr.next;
+                    curr.next = node;
                 } finally {
                     curr.lock.unlock();
                 }

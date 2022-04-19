@@ -42,6 +42,11 @@ public class LockFreeChain {
         }
     }
 
+    //Gets buckets array list for testing purposes
+    public ArrayList<AtomicReference<HashNode>> getBuckets(){
+        return buckets;
+    }
+
     //True if hash table is empty, false otherwise
     public boolean isEmpty() { return size.get() == 0; }
 
