@@ -53,6 +53,28 @@ public class CuckooTest {
     			hash.place(keys[i], 0, cnt, n);
         }
     }
+    
+    public class TestStripedLockThread implements Runnable{
+        StripedLockCuckoo hash;
+        public TestStripedLockThread(StripedLockCuckoo hash) {
+            this.hash = hash;
+        }
+        
+        public void run() {
+    		/* following array doesn't have any cycles and hence all keys will be inserted without any rehashing */
+    		//int keys[] = {20, 50, 53, 75, 100, 67, 105, 3, 36, 39};
+        	int keys[] = new int[1000];
+    		for (int i = 0; i < 1000; i++) {
+    			keys[i] = i;
+    		}    			
+    		int n = keys.length;
+    		// start with placing every key at its position in
+    		// the first hash table according to first hash
+    		// function
+    		for (int i = 0, cnt = 0; i < n; i++, cnt = 0)
+    			hash.place(keys[i], 0, cnt, n);
+        }
+    }
 
 //    public class TestFreeThread implements Runnable{
 //        LockFreeCuckoo hash;
@@ -99,7 +121,7 @@ public class CuckooTest {
 		// print the final table
 		hash.printTable();
 		int count = hash.itemCount();
-		System.out.println("lock item count: " + count);
+		System.out.println("lock item count: " + count + "\n");
 		Assert.assertTrue("Item count is correct", count == 1000);
     }
 
@@ -127,7 +149,35 @@ public class CuckooTest {
 		// print the final table
 		hash.printTable();
 		int count = hash.itemCount();
-		System.out.println("coarse lock item count: " + count);
+		System.out.println("coarse lock item count: " + count + "\n");
+		Assert.assertTrue("Item count is correct", count == 1000);
+    }
+    
+    @Test
+    public void testStripedLockCuckoo() throws ExecutionException, InterruptedException {
+    	StripedLockCuckoo hash = new StripedLockCuckoo();
+    	StripedLockCuckoo.hashtable = new int[StripedLockCuckoo.ver][StripedLockCuckoo.MAXN];
+    	StripedLockCuckoo.pos = new int[StripedLockCuckoo.ver];
+    	StripedLockCuckoo.initLocks();
+    	StripedLockCuckoo.initTable();
+        int numThreads = 8;
+        Thread[] threads = new Thread[numThreads];
+        for(int i = 0; i < numThreads; i++) {
+            threads[i] = new Thread(new TestStripedLockThread(hash));
+            threads[i].start();
+        }
+        // finish threads
+        for(Thread t : threads) {
+            try {
+                t.join();
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
+        }
+		// print the final table
+		hash.printTable();
+		int count = hash.itemCount();
+		System.out.println("striped lock item count: " + count + "\n");
 		Assert.assertTrue("Item count is correct", count == 1000);
     }
 
@@ -151,7 +201,7 @@ public class CuckooTest {
 //		// print the final table
 //		hash.printTable();
 //		int count = hash.itemCount();
-//		System.out.println("lock free item count: " + count);
+//		System.out.println("lock free item count: " + count + "\n");
 //		Assert.assertTrue("Item count is correct", count == 100);
 //    }
 
@@ -172,7 +222,7 @@ public class CuckooTest {
 		// print the final table
 		hash.printTable();
 		int count = hash.itemCount();
-		System.out.println("normal item count: " + count);
+		System.out.println("normal item count: " + count + "\n");
 		Assert.assertTrue("Item count is correct", count == n);		
 
 //        NormalCuckoo hash2 = new NormalCuckoo();
