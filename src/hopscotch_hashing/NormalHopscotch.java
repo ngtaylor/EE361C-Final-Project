@@ -1,8 +1,6 @@
 package hopscotch_hashing;
 
-import java.util.concurrent.locks.ReentrantLock;
-
-public class LockHopscotch {
+public class NormalHopscotch {
 	final static int HOP_RANGE = 32;
 	final static int ADD_RANGE = 256;
 	final static int MAX_SEGMENTS = 1048576; // Including neighbourhood for last hash location
@@ -19,18 +17,16 @@ public class LockHopscotch {
 		long hop_info;
 		int key;
 		int data;
-		ReentrantLock lock; // fine-grain requires a lock for each bucket
 
 		//CTR - bucket
 		Bucket() {
 			hop_info = 0;
 			key = -1;
 			data = -1;
-			lock = new ReentrantLock();
 		}
 	}
 	
-	public LockHopscotch(){
+	public NormalHopscotch(){
 		segments = new Bucket[MAX_SEGMENTS+256];
 		for (int i = 0; i < MAX_SEGMENTS+256; i++) {
 			segments[i] = new Bucket();
@@ -59,8 +55,6 @@ public class LockHopscotch {
 	int remove(int key) {
 		int hash = ((key) & (MAX_SEGMENTS-1));
 		Bucket start_bucket = segments[hash];
-		// lock the appropriate neighborhood
-		start_bucket.lock.lock();
 
 		long hop_info = start_bucket.hop_info;
 		long mask = 1;
@@ -72,12 +66,10 @@ public class LockHopscotch {
 					check_bucket.key = -1;
 					check_bucket.data = -1;
 					start_bucket.hop_info &= ~(1<<i);
-					start_bucket.lock.unlock();
 					return rc;
 				}
 			}
 		}
-		start_bucket.lock.unlock();
 		return -1;
 	} 
 	/**
@@ -97,7 +89,6 @@ public class LockHopscotch {
 		int[] result = new int[3];
 		int move_bucket_index = free_bucket_index - (HOP_RANGE-1);
 		Bucket move_bucket = segments[move_bucket_index];
-		
 		for(int free_dist = (HOP_RANGE -1); free_dist > 0; --free_dist) {
 			long start_hop_info = move_bucket.hop_info;
 			int move_free_distance = -1;
@@ -110,7 +101,6 @@ public class LockHopscotch {
 			}
 			/*When a suitable bucket is found, its content is moved to the old free_bucket*/
 			if(-1 != move_free_distance) {
-				move_bucket.lock.lock();
 				if(start_hop_info == move_bucket.hop_info) {
 					int new_free_bucket_index = move_bucket_index + move_free_distance;
 					Bucket new_free_bucket = segments[new_free_bucket_index];
@@ -118,20 +108,17 @@ public class LockHopscotch {
 					move_bucket.hop_info |= (1 << free_dist);
 					segments[free_bucket_index].data = new_free_bucket.data;
 					segments[free_bucket_index].key = new_free_bucket.key;
-					
 					new_free_bucket.key = BUSY;
 					new_free_bucket.data = BUSY;
 					/*Updates move_bucket's hop_info, to indicate the deleted bucket*/
 					move_bucket.hop_info &= ~(1<<move_free_distance);
-					
+					segments[free_bucket_index] = new_free_bucket;
 					free_distance = free_distance - free_dist + move_free_distance;
-					move_bucket.lock.unlock();
 					result[0] = free_distance;
 					result[1] = val;
 					result[2] = new_free_bucket_index;
 					return result;
 				}
-				move_bucket.lock.unlock();
 			}
 			++move_bucket_index;
 			move_bucket = segments[move_bucket_index];
@@ -172,13 +159,10 @@ public class LockHopscotch {
 		int val = 1;
 		int hash=((key) & (MAX_SEGMENTS-1));
 		Bucket start_bucket = segments[hash];
-		// lock the appropriate neighborhood
-		start_bucket.lock.lock();		
 		if(contains(key)) {
-			start_bucket.lock.unlock();
 			return false;
 		}
-		/*Looks for a free space to add the new bucket, inside the neighborhood of start_bucket*/
+		/*Looks for a free space to add the new bucket, inside the neighbourhood of start_bucket*/
 		int free_bucket_index = hash;
 		Bucket free_bucket = segments[hash];
 		int free_distance = 0;
@@ -200,7 +184,6 @@ public class LockHopscotch {
 					start_bucket.hop_info |= (1<<free_distance);
 					free_bucket.data = data;
 					free_bucket.key = key;
-					start_bucket.lock.unlock();
 					return true;
 				} else {
 					/*In case a free space was not found in the neighborhood of start_bucket,
@@ -213,7 +196,6 @@ public class LockHopscotch {
 				}
 			} while(0 != val);
 		}
-		start_bucket.lock.unlock();
 		//System.out.println("Called Resize");
 		return false;
 	}
