@@ -59,18 +59,20 @@ public class LockFreeChain {
         //Start at head of chain
         AtomicMarkableReference<HashNode> head = buckets.get(bucketIdx);
 
-        //Find key in its chain
-        while(head.getReference().key != null){
-            //If found return value, else keep traversing chain
-            if(head.getReference().key.equals(key) && hashCode.equals(head.getReference().hashCode)){
-                return head.getReference().value;
-            } else {
-                head = head.getReference().next;
-            }
+        boolean[] marked = {false};
+        HashNode curr = head.getReference().next.getReference();
+
+
+        while(curr != null && curr.key < key){
+            curr = curr.next.getReference();
+            HashNode succ = curr.next.get(marked);
         }
 
-        //If not found
-        return null;
+        if(curr != null && curr.key == key && !marked[0]){
+            return curr.value;
+        } else {
+            return null;
+        }
     }
 
     //Removes key and returns value associated with it
@@ -78,39 +80,31 @@ public class LockFreeChain {
         //Use hash function to get index of key
         Integer bucketIdx = hashFunction(key);
         Integer hashCode = key.hashCode();
+        boolean snip;
 
         //Start at head of chain
         AtomicMarkableReference<HashNode> head = buckets.get(bucketIdx);
-
-        //Find key in its chain
-        AtomicMarkableReference<HashNode> prev = null;
-        while(head.getReference().key != null){
-            //If found break, else keep traversing chain
-            if(head.getReference().key.equals(key) && hashCode.equals(head.getReference().hashCode)){
-                break;
+        while(true){
+            Window window = find(head.getReference(), key);
+            HashNode prev = window.prev, curr = window.curr;
+            if(curr != null && curr.key != key){
+                return null;
             } else {
-                prev = head;
-                head = head.getReference().next;
+                if(curr.next != null) {
+                    HashNode succ = curr.next.getReference();
+                    snip = curr.next.attemptMark(succ, true);
+                    if (!snip) {
+                        continue;
+                    }
+                    prev.next.compareAndSet(curr, succ, false, false);
+                } else {
+                    prev.next.compareAndSet(curr, null, false, false);
+                }
+                size.decrementAndGet();
+                return curr.value;
             }
         }
 
-        //If key not found
-        if(head.getReference().key == null){
-            return null;
-        }
-
-        //Reduce size;
-        size.decrementAndGet();
-
-        //Remove key
-        if(prev != null && prev.getReference().key != null){
-            HashNode prevNode = prev.getReference();
-            prevNode.next = head.getReference().next;
-            prev.set(prevNode, false);
-        } else {
-            buckets.set(bucketIdx, head.getReference().next);
-        }
-        return head.getReference().value;
     }
 
     //Add key-value pair to hash table
@@ -123,26 +117,31 @@ public class LockFreeChain {
         AtomicMarkableReference<HashNode> head = buckets.get(bucketIdx);
 
         //See if key is already in its chain
-        while(head.getReference().key != null){
+        while(true){
+            Window window = find(head.getReference(), key);
+            HashNode prev = window.prev, curr = window.curr;
             //If found break, else keep traversing chain
-            if(head.getReference().key.equals(key) && hashCode.equals(head.getReference().hashCode)){
-                HashNode newNode = head.getReference();
-                newNode.value = value;
-                HashNode oldHead = head.getReference();
-                head.compareAndSet(oldHead, newNode, false, false);
-                return;
+            if(curr != null && curr.key == key){
+                curr.value = value;
+                HashNode node  = new HashNode(curr.key, value, key.hashCode());
+                node.next = curr.next;
+                if(prev.next.compareAndSet(curr, node, false, false)){
+                    return;
+                }
             } else {
-                head = head.getReference().next;
+                size.incrementAndGet();
+                HashNode node = new HashNode(key, value, key.hashCode());
+                if(curr != null) {
+                    node.next = new AtomicMarkableReference<>(curr, false);
+                }
+                if(prev.next == null){
+                    prev.next = new AtomicMarkableReference<>(node, false);
+                    return;
+                } else if(prev.next.compareAndSet(curr, node, false, false)){
+                    return;
+                }
             }
         }
-
-        //If key not present then insert it as new head
-        size.incrementAndGet();
-        head = buckets.get(bucketIdx);
-        HashNode node = new HashNode(key, value, hashCode);
-        node.next = head;
-        AtomicMarkableReference<HashNode> newHead = new AtomicMarkableReference<>(node, false);
-        buckets.set(bucketIdx, newHead);
     }
 
     //Hash function for obtaining hash index for a key
@@ -151,6 +150,49 @@ public class LockFreeChain {
         Integer index = hashCode % numBuckets;
         index = index < 0 ? index * -1 : index;
         return index;
+    }
+
+    //Inner class used for lock free concurrency
+    public class Window {
+        public HashNode prev, curr;
+        Window(HashNode prev, HashNode curr){
+            this.prev = prev;
+            this.curr = curr;
+        }
+    }
+
+    //Returns Window with prev: the node with the largest key less than key, and curr: node with least key greater than or equal to key
+    public Window find(HashNode head, int key){
+        HashNode prev = null, curr = null, succ = null;
+        boolean[] marked = {false};
+        boolean snip;
+        retry: while(true){
+            prev = head;
+            if(prev.next == null){
+                return new Window(prev, null);
+            }
+            curr = prev.next.getReference();
+            while(true) {
+                //If curr is null then item is not in list
+                if(curr == null){
+                    return new Window(prev, curr);
+                }
+                if(curr.next != null) {
+                    succ = curr.next.get(marked);
+                    while (marked[0]) {
+                        snip = prev.next.compareAndSet(curr, succ, false, false);
+                        if (!snip) continue retry;
+                        curr = succ;
+                        succ = curr.next.get(marked);
+                    }
+                }
+                if(curr.key >= key){
+                    return new Window(prev, curr);
+                }
+                prev = curr;
+                curr = succ;
+            }
+        }
     }
 
     protected class HashNode {
@@ -163,7 +205,7 @@ public class LockFreeChain {
             this.key = key;
             this.value = value;
             this.hashCode = hashCode;
-            next = new AtomicMarkableReference<>(null, false);
+            next = null;
         }
     }
 }

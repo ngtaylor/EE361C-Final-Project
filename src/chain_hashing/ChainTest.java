@@ -8,6 +8,7 @@ import org.junit.Assert;
 import org.junit.Test;
 import java.util.ArrayList;
 import java.util.concurrent.*;
+import java.util.concurrent.atomic.AtomicMarkableReference;
 import java.util.concurrent.atomic.AtomicReference;
 
 public class ChainTest {
@@ -42,7 +43,7 @@ public class ChainTest {
             this.hash = hash;
         }
         public void run() {
-            for(int i = 0; i < 30; i++) {
+            for(int i = 0; i < 5; i++) {
                 hash.put(i, i);
             }
         }
@@ -133,7 +134,7 @@ public class ChainTest {
 
     @Test
     public void testLockFreeChain() {
-        int numBuckets = 10;
+        int numBuckets = 4;
         LockFreeChain hash = new LockFreeChain(numBuckets);
         int numThreads = 8;
         Thread[] threads = new Thread[numThreads];
@@ -151,20 +152,20 @@ public class ChainTest {
         }
         //Go through all chains to see if the correct number of items are present
         int count = 0;
-        ArrayList<AtomicReference<LockFreeChain.HashNode>> buckets = hash.getBuckets();
+        ArrayList<AtomicMarkableReference<LockFreeChain.HashNode>> buckets = hash.getBuckets();
         for(int i = 0; i < numBuckets; i++) {
-            AtomicReference<LockFreeChain.HashNode> head = buckets.get(i);
+            AtomicMarkableReference<LockFreeChain.HashNode> head = buckets.get(i).getReference().next;
             while(head != null){
                 count++;
-                head = head.get().next;
+                head = head.getReference().next;
             }
         }
-        int expected = 30;
+        int expected = 5;
         System.out.println("# of items in hashtable: " + count + " Expected #: " + expected);
         Assert.assertTrue("Count: " + count + " Expected: " + expected, count == expected);
 
         Integer val;
-        for(int i = 0; i < 30; i++){
+        for(int i = 0; i < 4; i++){
             val = hash.remove(i);
             System.out.println("Removed values are correct");
             Assert.assertTrue("Removed values are correct", val == i);
@@ -174,8 +175,9 @@ public class ChainTest {
     //This tests a normal chain hash table that does not involve concurrent algorithms
     @Test
     public void testNormalChain(){
-        //LockFreeChain hash = new LockFreeChain(2);
-        LockChain hash = new LockChain(2);
+        int numBuckets = 2;
+        LockFreeChain hash = new LockFreeChain(numBuckets);
+        //LockChain hash = new LockChain(2);
         //NormalChain hash = new NormalChain();
         //CoarseLockChain hash = new CoarseLockChain(2);
         hash.put(1,1);
@@ -183,6 +185,19 @@ public class ChainTest {
         hash.put(1,3);
         hash.put(4,4);
         hash.put(5,5);
+        int count = 0;
+        ArrayList<AtomicMarkableReference<LockFreeChain.HashNode>> buckets = hash.getBuckets();
+        for(int i = 0; i < numBuckets; i++) {
+            AtomicMarkableReference<LockFreeChain.HashNode> head = buckets.get(i).getReference().next;
+            while(head != null){
+                count++;
+                head = head.getReference().next;
+            }
+        }
+        int expected = 4;
+        System.out.println("# of items in hashtable: " + count + " Expected #: " + expected);
+        Assert.assertTrue("Count: " + count + " Expected: " + expected, count == expected);
+
         System.out.println("Size: " + hash.size);
         System.out.println("Remove 1: " + hash.remove(1));
         System.out.println("Remove 1: " + hash.remove(1));
