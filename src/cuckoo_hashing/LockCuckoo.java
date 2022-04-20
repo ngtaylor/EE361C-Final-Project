@@ -5,7 +5,7 @@ import java.util.concurrent.locks.ReentrantLock;
 public class LockCuckoo {
 	
 	//upper bound on number of elements in our set
-	static int MAXN = 1000;
+	static int MAXN = CuckooTest.ITERATIONS;
 
 	//choices for position
 	static int ver = 2;
@@ -77,7 +77,7 @@ public class LockCuckoo {
 		 * check if key already present at any of the positions. 
 		 * If YES, return. */
 		for (int i = 0; i < ver; i++) {
-			pos_locks[i].lock();	
+			pos_locks[i].lock();		
 			
 			pos[i] = hash(i + 1, key);
 			locks[i][pos[i]].lock();
@@ -91,7 +91,7 @@ public class LockCuckoo {
 			pos_locks[i].unlock();
 		}
 		pos_locks[tableID].lock();		
-		locks[tableID][pos[tableID]].lock();		
+		locks[tableID][pos[tableID]].lock();	
 		/* check if another key is already present at the position for the new key in the table
 		 * If YES: place the new key in its position
 		 * and place the older key in an alternate position for it in the next table */

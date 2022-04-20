@@ -3,7 +3,7 @@ package cuckoo_hashing;
 public class NormalCuckoo {
 	
 	//upper bound on number of elements in our set
-	static int MAXN = 1000;
+	static int MAXN = CuckooTest.ITERATIONS;
 
 	//choices for position
 	static int ver = 2;
