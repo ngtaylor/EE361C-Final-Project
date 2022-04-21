@@ -96,6 +96,59 @@ public class StripedLockCuckoo {
 			locks[1][hash(2, key) % locks[1].length].unlock();	
 		}
 	}
+	
+	/**
+	 * function to remove a key from the table
+	 * @param key to be removed
+	 * @return true if successful, false otherwise
+	 */
+	boolean remove(int key) {
+		// lock using striping
+		locks[0][hash(1, key) % locks[0].length].lock();
+		locks[1][hash(2, key) % locks[1].length].lock();	
+		try {
+			/* calculate and store possible positions for the key.
+			 * check if key already present at any of the positions. 
+			 * If YES, remove and return. */
+			for (int i = 0; i < ver; i++) {
+				pos[i] = hash(i + 1, key);
+				if (hashtable[i][pos[i]] == key) {
+					hashtable[i][pos[i]] = Integer.MIN_VALUE;
+					return true;
+				}				
+			}
+			return false;
+		} finally {
+			locks[0][hash(1, key) % locks[0].length].unlock();
+			locks[1][hash(2, key) % locks[1].length].unlock();
+		}		
+	}
+	
+	/**
+	 * function to find if a key is in the table
+	 * @param key to find
+	 * @return true if the key is in the table, false otherwise
+	 */
+	boolean contains(int key) {
+		// lock using striping
+		locks[0][hash(1, key) % locks[0].length].lock();
+		locks[1][hash(2, key) % locks[1].length].lock();	
+		try {
+			/* calculate and store possible positions for the key.
+			 * check if key already present at any of the positions. 
+			 * If YES, return. */
+			for (int i = 0; i < ver; i++) {
+				pos[i] = hash(i + 1, key);
+				if (hashtable[i][pos[i]] == key) {
+					return true;
+				}				
+			}
+			return false;
+		} finally {
+			locks[0][hash(1, key) % locks[0].length].unlock();
+			locks[1][hash(2, key) % locks[1].length].unlock();
+		}	
+	}
 
 	/* function to print hash table contents */
 	void printTable() {

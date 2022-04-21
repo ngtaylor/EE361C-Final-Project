@@ -74,6 +74,43 @@ public class NormalCuckoo {
 		else // else: place the new key in its position
 			hashtable[tableID][pos[tableID]] = key;
 	}
+	
+	/**
+	 * function to remove a key from the table
+	 * @param key to be removed
+	 * @return true if successful, false otherwise
+	 */
+	boolean remove(int key) {
+		/* calculate and store possible positions for the key.
+		 * check if key already present at any of the positions. 
+		 * If YES, remove and return. */
+		for (int i = 0; i < ver; i++) {
+			pos[i] = hash(i + 1, key);
+			if (hashtable[i][pos[i]] == key) {
+				hashtable[i][pos[i]] = Integer.MIN_VALUE;
+				return true;
+			}				
+		}
+		return false;
+	}
+	
+	/**
+	 * function to find if a key is in the table
+	 * @param key to find
+	 * @return true if the key is in the table, false otherwise
+	 */
+	boolean contains(int key) {
+		/* calculate and store possible positions for the key.
+		 * check if key already present at any of the positions. 
+		 * If YES, return. */
+		for (int i = 0; i < ver; i++) {
+			pos[i] = hash(i + 1, key);
+			if (hashtable[i][pos[i]] == key) {
+				return true;
+			}				
+		}
+		return false;
+	}
 
 	/* function to print hash table contents */
 	void printTable() {
