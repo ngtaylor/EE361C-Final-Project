@@ -18,6 +18,7 @@ public class LockChain {
     //Current size of array list
     public AtomicInteger size;
 
+
     public LockChain(){
         buckets = new ArrayList<>();
         numBuckets = 10;
@@ -62,21 +63,19 @@ public class LockChain {
         try {
             prev = head;
             curr = prev.next;
-            if(curr == null){
-                return null;
+            if(curr != null) {
+                curr.lock.lock();
             }
-            curr.lock.lock();
             try {
                 //Find key in its chain
-                while (curr.hashCode < hashCode) {
+                while (curr != null && curr.hashCode < hashCode) {
                     //Traverse using "hand over hand" method of acquiring locks
                     prev.lock.unlock();
                     prev = curr;
                     curr = curr.next;
-                    if(curr == null) {
-                        break;
+                    if(curr != null) {
+                        curr.lock.lock();
                     }
-                    curr.lock.lock();
                 }
 
                 if(curr != null && curr.hashCode == hashCode){
@@ -110,21 +109,19 @@ public class LockChain {
             //Else use fine-grained locking to traverse chain
             prev = head;
             curr = prev.next;
-            if(curr == null){
-                return null;
+            if(curr != null) {
+                curr.lock.lock();
             }
-            curr.lock.lock();
             try {
                 //Find key in its chain
-                while (curr.hashCode < hashCode) {
+                while (curr != null && curr.hashCode < hashCode) {
                     //Traverse using "hand over hand" method of acquiring locks
                     prev.lock.unlock();
                     prev = curr;
                     curr = curr.next;
-                    if(curr == null) {
-                        break;
+                    if(curr != null) {
+                        curr.lock.lock();
                     }
-                    curr.lock.lock();
                 }
 
                 if(curr != null && curr.hashCode == hashCode){
@@ -157,25 +154,19 @@ public class LockChain {
         try {
             //Else use fine-grained locking to traverse chain
             HashNode curr = prev.next;
-            if(curr == null){
-                size.incrementAndGet();
-                HashNode node = new HashNode(key, value, hashCode);
-                node.next = null;
-                prev.next = node;
-                return;
+            if(curr != null) {
+                curr.lock.lock();
             }
-            curr.lock.lock();
             try {
                 //See if key is already in its chain
-                while (curr.hashCode < hashCode) {
+                while (curr != null && curr.hashCode < hashCode) {
                         //Traverse using "hand over hand" method of acquiring locks
                         prev.lock.unlock();
                         prev = curr;
                         curr = curr.next;
-                        if(curr == null) {
-                            break;
+                        if(curr != null) {
+                            curr.lock.lock();
                         }
-                        curr.lock.lock();
                 }
                 if(curr != null && curr.hashCode == hashCode){
                     curr.value = value;

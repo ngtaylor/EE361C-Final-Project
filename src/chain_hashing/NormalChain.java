@@ -5,6 +5,7 @@
 package chain_hashing;
 
 import java.util.ArrayList;
+import java.util.concurrent.atomic.AtomicMarkableReference;
 
 public class NormalChain {
     //Stores array of chains
@@ -136,6 +137,10 @@ public class NormalChain {
         Integer index = hashCode % numBuckets;
         index = index < 0 ? index * -1 : index;
         return index;
+    }
+
+    public ArrayList<HashNode> getBuckets() {
+        return buckets;
     }
 
     protected class HashNode {
