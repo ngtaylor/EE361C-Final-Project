@@ -7,8 +7,8 @@ import java.util.concurrent.*;
 
 public class HopscotchTest {
 	
-	static int ITERATIONS = 100000;
-	static int NUM_THREADS = 8;
+	static int ITERATIONS = 1000000;
+	static int NUM_THREADS = 16;
 	
     public class TestLockThread implements Runnable{
         LockHopscotch hash;
@@ -39,22 +39,6 @@ public class HopscotchTest {
     		for (int i = 0; i < ITERATIONS; i++) {
     			hash.remove(i);
     		}  
-        }
-    }
-
-    public class TestLockFreeThread implements Runnable{
-        LockFreeHopscotch hash;
-        public TestLockFreeThread(LockFreeHopscotch hash) {
-            this.hash = hash;
-        }
-
-        public void run() {
-            for (int i = 0; i < ITERATIONS; i++) {
-                hash.add(i);
-            }
-            for (int i = 0; i < ITERATIONS; i++) {
-                hash.remove(i);
-            }
         }
     }
 
@@ -100,28 +84,6 @@ public class HopscotchTest {
 		int count = hash.getItemCount();
 		System.out.println("coarse lock item count: " + count + "\n");
 		Assert.assertTrue("Item count is correct", count == 0);
-    }
-
-    @Test
-    public void testLockFreeHopscotch() throws ExecutionException, InterruptedException {
-        LockFreeHopscotch hash = new LockFreeHopscotch();
-        int numThreads = NUM_THREADS;
-        Thread[] threads = new Thread[numThreads];
-        for(int i = 0; i < numThreads; i++) {
-            threads[i] = new Thread(new TestLockFreeThread(hash));
-            threads[i].start();
-        }
-        // finish threads
-        for(Thread t : threads) {
-            try {
-                t.join();
-            } catch (InterruptedException e) {
-                e.printStackTrace();
-            }
-        }
-        int count = hash.getItemCount();
-        System.out.println("Lock-free item count: " + count + "\n");
-        Assert.assertTrue("Item count is correct", count == 0);
     }
     
     @Test

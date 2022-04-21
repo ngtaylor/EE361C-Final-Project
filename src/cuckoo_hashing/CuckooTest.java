@@ -11,29 +11,9 @@ import java.util.concurrent.locks.ReentrantLock;
 
 public class CuckooTest {
 	
-	static int ITERATIONS = 100000;
-	static int NUM_THREADS = 8;
+	static int ITERATIONS = 1000000;
+	static int NUM_THREADS = 16;
 
-    public class TestLockThread implements Runnable{
-        LockCuckoo hash;
-        public TestLockThread(LockCuckoo hash) {
-            this.hash = hash;
-        }
-        public void run() {
-        	/* following array doesn't have any cycles and hence all keys will be inserted without any rehashing */
-        	//int keys[] = {20, 50, 53, 75, 100, 67, 105, 3, 36, 39};
-			int keys[] = new int[ITERATIONS];
-			for (int i = 0; i < ITERATIONS; i++) {
-				keys[i] = i;
-			}    			
-        	int n = keys.length;
-        	// start with placing every key at its position in
-        	// the first hash table according to first hash
-        	// function
-        	for (int i = 0, cnt = 0; i < n; i++, cnt = 0)
-        		hash.place(keys[i], 0, cnt, n);
-        }
-    }
 
     public class TestCoarseLockThread implements Runnable{
         CoarseLockCuckoo hash;
@@ -54,6 +34,9 @@ public class CuckooTest {
     		// function
     		for (int i = 0, cnt = 0; i < n; i++, cnt = 0)
     			hash.place(keys[i], 0, cnt, n);
+    		for (int i = 0; i < ITERATIONS; i++) {
+        		hash.remove(i);
+        	}
         }
     }
     
@@ -76,56 +59,10 @@ public class CuckooTest {
     		// function
     		for (int i = 0, cnt = 0; i < n; i++, cnt = 0)
     			hash.place(keys[i], 0, cnt, n);
+    		for (int i = 0; i < ITERATIONS; i++) {
+        		hash.remove(i);
+        	}
         }
-    }
-
-    public class TestFreeThread implements Runnable{
-        LockFreeCuckoo hash;
-        public TestFreeThread(LockFreeCuckoo hash) {
-            this.hash = hash;
-        }
-        public void run() {
-    		/* following array doesn't have any cycles and hence all keys will be inserted without any rehashing */
-    		//int keys[] = {20, 50, 53, 75, 100, 67, 105, 3, 36, 39};
-			int keys[] = new int[ITERATIONS];
-			for (int i = 0; i < ITERATIONS; i++) {
-				keys[i] = i;
-			}   
-    		int n = keys.length;
-    		// start with placing every key at its position in
-    		// the first hash table according to first hash
-    		// function
-    		for (int i = 0, cnt = 0; i < n; i++, cnt = 0)
-    			hash.place(keys[i], 0, cnt, n);
-        }
-    }
-
-    @Test
-    public void testLockCuckoo() throws ExecutionException, InterruptedException {
-        LockCuckoo hash = new LockCuckoo();
-        LockCuckoo.hashtable = new int[LockCuckoo.ver][LockCuckoo.MAXN];
-        LockCuckoo.pos = new int[LockCuckoo.ver];
-        LockCuckoo.initTable();
-        LockCuckoo.initLocks();
-        int numThreads = NUM_THREADS;
-        Thread[] threads = new Thread[numThreads];
-        for(int i = 0; i < numThreads; i++) {
-            threads[i] = new Thread(new TestLockThread(hash));
-            threads[i].start();
-        }
-        // finish threads
-        for(Thread t : threads) {
-            try {
-                t.join();
-            } catch (InterruptedException e) {
-                e.printStackTrace();
-            }
-        }
-		// print the final table
-		//hash.printTable();
-		int count = hash.itemCount();
-		System.out.println("lock item count: " + count + "\n");
-		Assert.assertTrue("Item count is correct", count == ITERATIONS);
     }
 
     @Test
@@ -153,7 +90,7 @@ public class CuckooTest {
 		//hash.printTable();
 		int count = hash.itemCount();
 		System.out.println("coarse lock item count: " + count + "\n");
-		Assert.assertTrue("Item count is correct", count == ITERATIONS);
+		Assert.assertTrue("Item count is correct", count == 0);
     }
     
     @Test
@@ -181,31 +118,7 @@ public class CuckooTest {
 		//hash.printTable();
 		int count = hash.itemCount();
 		System.out.println("striped lock item count: " + count + "\n");
-		Assert.assertTrue("Item count is correct", count == ITERATIONS);
-    }
-
-    @Test
-    public void testLockFreeCuckoo() {
-        LockFreeCuckoo hash = new LockFreeCuckoo();
-        int numThreads = NUM_THREADS;
-        Thread[] threads = new Thread[numThreads];
-        for(int i = 0; i < numThreads; i++) {
-            threads[i] = new Thread(new TestFreeThread(hash));
-            threads[i].start();
-        }
-        // finish threads
-        for(Thread t : threads) {
-            try {
-                t.join();
-            } catch (InterruptedException e) {
-                e.printStackTrace();
-            }
-        }
-		// print the final table
-		//hash.printTable();
-		int count = hash.itemCount();
-		System.out.println("lock free item count: " + count + "\n");
-		Assert.assertTrue("Item count is correct", count == ITERATIONS);
+		Assert.assertTrue("Item count is correct", count == 0);
     }
 
     //This tests a normal chain hash table that does not involve concurrent algorithms
@@ -224,9 +137,16 @@ public class CuckooTest {
 			hash.place(keys[i], 0, cnt, n);
 		// print the final table
 		//hash.printTable();
+//		int count = hash.itemCount();
+//		System.out.println("normal item count: " + count + "\n");
+//		Assert.assertTrue("Item count is correct", count == n);	
+		
+		for(int i = 0; i < ITERATIONS; i++) {
+			hash.remove(i);
+		}
 		int count = hash.itemCount();
-		System.out.println("normal item count: " + count + "\n");
-		Assert.assertTrue("Item count is correct", count == n);		
+		System.out.println("normal item count after removal: " + count + "\n");
+		Assert.assertTrue("Item count is correct", count == 0);	
 
 //        NormalCuckoo hash2 = new NormalCuckoo();
 //		/* following array has a cycle and hence we will have to rehash to position every key */

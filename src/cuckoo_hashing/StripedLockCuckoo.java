@@ -38,10 +38,6 @@ public class StripedLockCuckoo {
 	}
 	
 	public StripedLockCuckoo() {
-//		hashtable = new int[ver][MAXN];
-//		pos = new int[ver];
-//		lock = new ReentrantLock();
-//		initTable();
 	}
 	
 	/* return hashed value for a key
