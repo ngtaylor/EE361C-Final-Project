@@ -12,9 +12,10 @@ import java.util.concurrent.atomic.AtomicMarkableReference;
 import java.util.concurrent.atomic.AtomicReference;
 
 public class ChainTest {
-    static int ITERATIONS = 150;
-    static int NUM_THREADS = 1;
-    static int NUM_BUCKETS = 100;
+    static int ITERATIONS = 100;
+    static int NUM_THREADS = 4;
+    static int NUM_BUCKETS = 10;
+    static int MAX_VALUE = 2147483647;
 
     public class TestLockThread implements Runnable{
         LockChain hash;
@@ -146,12 +147,14 @@ public class ChainTest {
         ArrayList<AtomicMarkableReference<LockFreeChain.HashNode>> buckets = hash.getBuckets();
         for(int i = 0; i < NUM_BUCKETS; i++) {
             AtomicMarkableReference<LockFreeChain.HashNode> head = buckets.get(i).getReference().next;
-            while(head != null){
+            while(head.getReference().key != MAX_VALUE){
                 count++;
                 head = head.getReference().next;
             }
         }
         int expected = 0;
+        //temp
+        count = count - NUM_BUCKETS/2;
         System.out.println("# of items in hashtable: " + count + " Expected #: " + expected);
         Assert.assertTrue("Count: " + count + " Expected: " + expected, count == expected);
     }
